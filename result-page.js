@@ -74,7 +74,7 @@ function renderOutput(r){
         ${kv.length ? renderKeyVocabList(kv) : `<div class="empty"><div class="big">No flagged words</div>This text didn't surface new vocabulary beyond what you've already saved.</div>`}
       </div>
       <div class="result-tab-panel" id="rtab-exercises">
-        <div class="empty"><div class="big">Coming soon</div>Practice exercises for this text will appear here in a future update.</div>
+        <div id="exercisesArea"></div>
       </div>
     </div>`;
 
@@ -83,6 +83,7 @@ function renderOutput(r){
       document.querySelectorAll('.result-tab').forEach(b=>b.classList.toggle('active', b===btn));
       document.querySelectorAll('.result-tab-panel').forEach(p=>p.classList.remove('active'));
       document.getElementById('rtab-'+btn.dataset.rtab).classList.add('active');
+      if(btn.dataset.rtab === 'exercises') loadExercises(r);
     });
   });
 
@@ -126,21 +127,38 @@ function printText(r){
   w.document.close(); w.focus(); w.print();
 }
 
-/* ---- tap-word popup (translate / copy / add) ---- */
+/* ---- tap-word popup (translate / copy / add) — long-press to open ---- */
 let currentTappedWord = null;
+let pressTimer = null, pressStartX = 0, pressStartY = 0, pressWord = null;
+const LONG_PRESS_MS = 550;
+const MOVE_CANCEL_PX = 10;
 function wireWordTapPopup(){
   const block = document.getElementById('genTextBlock');
   if(!block) return;
-  block.addEventListener('click', (e)=>{
+  block.addEventListener('pointerdown', (e)=>{
     const el = e.target.closest('.tap-word');
     if(!el || !el.dataset.word) return;
-    openWordPopup(el.dataset.word);
+    pressWord = el.dataset.word;
+    pressStartX = e.clientX; pressStartY = e.clientY;
+    clearTimeout(pressTimer);
+    pressTimer = setTimeout(()=>{
+      if(pressWord){ openWordPopup(pressWord); pressWord = null; }
+    }, LONG_PRESS_MS);
   });
+  block.addEventListener('pointermove', (e)=>{
+    if(!pressWord) return;
+    if(Math.abs(e.clientX-pressStartX) > MOVE_CANCEL_PX || Math.abs(e.clientY-pressStartY) > MOVE_CANCEL_PX){
+      clearTimeout(pressTimer); pressWord = null;
+    }
+  });
+  const cancelPress = ()=>{ clearTimeout(pressTimer); pressWord = null; };
+  block.addEventListener('pointerup', cancelPress);
+  block.addEventListener('pointercancel', cancelPress);
+  block.addEventListener('pointerleave', cancelPress);
 }
 async function openWordPopup(word){
   currentTappedWord = { word, meaningEn:'', meaningFa:'', example:'', ipa:'', phoneticFa:'', cefr:'' };
   document.getElementById('wpWord').textContent = word;
-  document.getElementById('wpIpa').textContent = '';
   document.getElementById('wpBody').innerHTML = `<div class="loading-row" style="justify-content:center"><div class="spin"></div> Translating…</div>`;
   document.getElementById('wordPopupModal').classList.add('open');
   try{
@@ -152,11 +170,7 @@ Respond with ONLY valid JSON (no markdown fences) in exactly this shape:
       meaningEn: data.meaningEn || '', meaningFa: data.meaningFa || '', example: data.example || '',
       ipa: data.ipa || '', phoneticFa: data.phoneticFa || '', cefr: data.cefr || ''
     });
-    document.getElementById('wpIpa').textContent = currentTappedWord.ipa;
-    document.getElementById('wpBody').innerHTML = `
-      <div class="kv-meaning">${escapeHtml(currentTappedWord.meaningEn)}</div>
-      ${currentTappedWord.meaningFa ? `<div class="kv-fa">${escapeHtml(currentTappedWord.meaningFa)}</div>` : ''}
-      ${currentTappedWord.example ? `<div class="kv-example">"${escapeHtml(currentTappedWord.example)}"</div>` : ''}`;
+    document.getElementById('wpBody').innerHTML = `<div class="kv-fa" style="font-size:15px">${escapeHtml(currentTappedWord.meaningFa || currentTappedWord.meaningEn)}</div>`;
   }catch(e){
     document.getElementById('wpBody').innerHTML = `<div class="hint" style="color:var(--danger)">Lookup failed.</div>`;
   }
@@ -178,8 +192,59 @@ document.getElementById('wpAddBtn').addEventListener('click', ()=>{
 /* ---- translation ---- */
 function saveResultUpdate(r){
   const history = LS.get('etg_history', []);
-  const h = history.find(x=>x.id===r.id); if(h) h.translations = r.translations;
+  const h = history.find(x=>x.id===r.id);
+  if(h){ h.translations = r.translations; h.exercises = r.exercises; }
   LS.set('etg_history', history);
+}
+/* ---- comprehension exercises ---- */
+async function loadExercises(r){
+  const area = document.getElementById('exercisesArea');
+  if(r.exercises){ renderExercises(r); return; }
+  area.innerHTML = `<div class="loading-row"><div class="spin"></div> Building exercises…</div>`;
+  try{
+    const prompt = `Based on the following English text, write 3 to 4 short multiple-choice reading comprehension questions that check understanding of the text's content (not grammar/vocabulary trivia).
+
+TEXT:
+"""${r.text}"""
+
+Respond with ONLY valid JSON (no markdown fences) in exactly this shape:
+{"questions":[{"question":"...", "options":["...","...","...","..."], "correctIndex":0}]}`;
+    const data = await callAI(prompt);
+    r.exercises = data.questions || [];
+    saveResultUpdate(r);
+    renderExercises(r);
+  }catch(e){
+    area.innerHTML = `<div class="hint" style="color:var(--danger)">Could not build exercises.</div>`;
+  }
+}
+function renderExercises(r){
+  const area = document.getElementById('exercisesArea');
+  const qs = r.exercises || [];
+  if(!qs.length){ area.innerHTML = `<div class="empty"><div class="big">No exercises</div>Could not generate exercises for this text.</div>`; return; }
+  area.innerHTML = qs.map((q,i)=>`
+    <div style="margin-bottom:18px">
+      <div style="font-size:14px;font-weight:600;margin-bottom:8px">${i+1}. ${escapeHtml(q.question)}</div>
+      ${(q.options||[]).map((opt,idx)=>`<button class="quiz-option" data-eq="${i}" data-idx="${idx}">${escapeHtml(opt)}</button>`).join('')}
+    </div>`).join('') + `<div class="hint" id="exerciseScoreLine" style="margin-top:6px"></div>`;
+  let answered = 0, correct = 0;
+  qs.forEach((q,i)=>{
+    area.querySelectorAll(`.quiz-option[data-eq="${i}"]`).forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        if(area.querySelector(`.quiz-option[data-eq="${i}"].correct, .quiz-option[data-eq="${i}"].wrong`)) return;
+        const idx = Number(btn.dataset.idx);
+        area.querySelectorAll(`.quiz-option[data-eq="${i}"]`).forEach(b=>{
+          b.disabled = true;
+          if(Number(b.dataset.idx) === q.correctIndex) b.classList.add('correct');
+          else if(b === btn) b.classList.add('wrong');
+        });
+        answered++;
+        if(idx === q.correctIndex) correct++;
+        if(answered === qs.length){
+          document.getElementById('exerciseScoreLine').textContent = `Score: ${correct} / ${qs.length}`;
+        }
+      });
+    });
+  });
 }
 async function toggleTranslation(r){
   const area = document.getElementById('translationArea');

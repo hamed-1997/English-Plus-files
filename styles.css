@@ -142,7 +142,7 @@ main{padding-bottom:92px}
 .gen-text{line-height:1.85;white-space:pre-wrap;font-family:'Fraunces',serif;direction:ltr;text-align:left}
 .seg-line{margin-bottom:8px}
 .hl.active,.tap-word.active{background:var(--teal-tint);border-radius:4px}
-.tap-word{cursor:pointer;border-bottom:1px dotted transparent}
+.tap-word{cursor:pointer;border-bottom:1px dotted transparent;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 .tap-word:hover,.tap-word:active{border-bottom-color:var(--muted)}
 .output-head-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
 .result-tabs{display:flex;gap:4px;margin:14px 0 14px;border-bottom:1px solid var(--line)}
