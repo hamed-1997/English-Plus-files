@@ -21,8 +21,34 @@ const I18N = {
     settings_font_family:'Text font', settings_highlight:'Read-along highlight', hl_sentence:'Sentence', hl_word:'Word',
     settings_reset:'Reset all data',
     home_grammar_title:'Grammar', home_grammar_sub:'Diagnose, build a roadmap, and reach full mastery',
-    home_grammar_eyebrow:'English+', home_grammar_cta:'Open Grammar', grammar_assess_title:'Assessment',
-    grammar_verbs_title:'Irregular Verbs', grammar_verbs_search:'Search', grammar_verbs_all:'Or browse the full list below:'
+    home_grammar_eyebrow:'Grammar', home_grammar_cta:'Open Grammar', grammar_assess_title:'Assessment',
+    grammar_verbs_title:'Irregular Verbs', grammar_verbs_search:'Search', grammar_verbs_all:'Or browse the full list below:',
+    grammar_page_title:'Grammar',
+    grammar_card_a_title:'Grammar A', grammar_card_a_sub:'A1 · A2',
+    grammar_card_b_title:'Grammar B', grammar_card_b_sub:'B1 · B2',
+    grammar_card_c_title:'Grammar C', grammar_card_c_sub:'C1 · C2',
+    grammar_card_tenses_title:'Tenses', grammar_card_tenses_sub:'Active & Passive',
+    grammar_card_test_title:'Level Test', grammar_card_test_sub:'Find your level',
+    grammar_card_studied_title:'Studied Grammar', grammar_card_studied_sub:'Your completed lessons',
+    grammar_card_verbs_title:'Irregular Verbs', grammar_card_verbs_sub:'List & search',
+    grammar_card_search_title:'Search Grammar', grammar_card_search_sub:'Find any topic',
+    grammar_continue_label:'Continue Learning', grammar_continue_btn:'Continue',
+    grammar_continue_empty_title:'No lessons started yet', grammar_continue_empty_sub:'Start learning and your progress will appear here.',
+    grammar_status_not_started:'Not started', grammar_status_learning:'Learning', grammar_status_completed:'Completed',
+    grammar_studied_title:'Studied Grammar', grammar_studied_empty:'No completed topics yet.',
+    grammar_search_ph:'Search a grammar topic…', grammar_search_empty:'No topics found.',
+    grammar_tenses_title:'Tenses', grammar_tenses_active:'Active Voice', grammar_tenses_passive:'Passive Voice',
+    grammar_tenses_compare:'Compare Tenses', grammar_tenses_timeline:'Tenses Timeline',
+    grammar_tenses_past:'Past', grammar_tenses_now:'Now', grammar_tenses_future:'Future',
+    grammar_lesson_more:'More explanation', grammar_lesson_usage:'Usage', grammar_lesson_structure:'Structure',
+    grammar_lesson_examples:'Examples', grammar_lesson_notes:'Important notes', grammar_lesson_mistakes:'Common mistakes',
+    grammar_mark_learning:'Mark as Learning', grammar_mark_completed:'Mark as Completed', grammar_mark_done:'Completed ✓',
+    grammar_assess_result_title:'Estimated Grammar Level', grammar_assess_range:'Estimated range',
+    grammar_assess_strong:'Strong in', grammar_assess_weak:'Needs work', grammar_assess_suggest:'Suggested starting point',
+    grammar_assess_disclaimer:'This is an approximate estimate, not an official CEFR exam.',
+    grammar_loading:'Loading…', grammar_generating:'Building this lesson for the first time…',
+    grammar_verb_not_found:'No irregular verb found with this form. It might be a regular verb (just add -ed).',
+    grammar_verb_past:'Past Simple', grammar_verb_pp:'Past Participle'
   },
   fa: {
     home_generate_title:'تولید متن', home_generate_sub:'یه متن خواندنی دقیقاً در سطح خودت بساز', home_cta:'شروع خواندن', last_generated:'آخرین متن تولیدشده',
@@ -44,8 +70,34 @@ const I18N = {
     settings_font_family:'فونت متن', settings_highlight:'هایلایت هنگام خوندن', hl_sentence:'جمله', hl_word:'کلمه',
     settings_reset:'ریست کل اطلاعات',
     home_grammar_title:'گرامر', home_grammar_sub:'تشخیص وضعیت، نقشه راه شخصی و رسیدن به تسلط کامل',
-    home_grammar_eyebrow:'English+', home_grammar_cta:'ورود به گرامر', grammar_assess_title:'آزمون تعیین سطح',
-    grammar_verbs_title:'صرف افعال بی‌قاعده', grammar_verbs_search:'جست‌وجو', grammar_verbs_all:'یا از لیست کامل زیر مرور کن:'
+    home_grammar_eyebrow:'گرامر', home_grammar_cta:'ورود به گرامر', grammar_assess_title:'آزمون تعیین سطح',
+    grammar_verbs_title:'صرف افعال بی‌قاعده', grammar_verbs_search:'جست‌وجو', grammar_verbs_all:'یا از لیست کامل زیر مرور کن:',
+    grammar_page_title:'گرامر',
+    grammar_card_a_title:'Grammar A', grammar_card_a_sub:'A1 · A2',
+    grammar_card_b_title:'Grammar B', grammar_card_b_sub:'B1 · B2',
+    grammar_card_c_title:'Grammar C', grammar_card_c_sub:'C1 · C2',
+    grammar_card_tenses_title:'زمان‌ها', grammar_card_tenses_sub:'معلوم و مجهول',
+    grammar_card_test_title:'آزمون تعیین سطح', grammar_card_test_sub:'سطحت رو پیدا کن',
+    grammar_card_studied_title:'خوانده‌شده‌ها', grammar_card_studied_sub:'گرامرهای تکمیل‌شده‌ت',
+    grammar_card_verbs_title:'افعال بی‌قاعده', grammar_card_verbs_sub:'لیست و جست‌وجو',
+    grammar_card_search_title:'جست‌وجوی گرامر', grammar_card_search_sub:'هر مبحثی رو پیدا کن',
+    grammar_continue_label:'ادامه‌ی یادگیری', grammar_continue_btn:'ادامه',
+    grammar_continue_empty_title:'هنوز درسی شروع نکردی', grammar_continue_empty_sub:'یادگیری رو شروع کن تا پیشرفتت اینجا نشون داده بشه.',
+    grammar_status_not_started:'شروع‌نشده', grammar_status_learning:'در حال یادگیری', grammar_status_completed:'تکمیل‌شده',
+    grammar_studied_title:'مبحث‌های خوانده‌شده', grammar_studied_empty:'هنوز هیچ مبحثی تکمیل نکردی.',
+    grammar_search_ph:'جست‌وجوی یه مبحث گرامری…', grammar_search_empty:'مبحثی پیدا نشد.',
+    grammar_tenses_title:'زمان‌ها', grammar_tenses_active:'حالت معلوم (Active)', grammar_tenses_passive:'حالت مجهول (Passive)',
+    grammar_tenses_compare:'مقایسه‌ی زمان‌ها', grammar_tenses_timeline:'خط زمانی',
+    grammar_tenses_past:'گذشته', grammar_tenses_now:'اکنون', grammar_tenses_future:'آینده',
+    grammar_lesson_more:'توضیح بیشتر', grammar_lesson_usage:'کاربرد', grammar_lesson_structure:'ساختار',
+    grammar_lesson_examples:'مثال‌ها', grammar_lesson_notes:'نکات مهم', grammar_lesson_mistakes:'اشتباهات رایج',
+    grammar_mark_learning:'شروع یادگیری', grammar_mark_completed:'تکمیل شد', grammar_mark_done:'تکمیل‌شده ✓',
+    grammar_assess_result_title:'سطح تقریبی گرامر تو', grammar_assess_range:'بازه‌ی تقریبی',
+    grammar_assess_strong:'نقطه‌ی قوت', grammar_assess_weak:'نیاز به تمرین بیشتر', grammar_assess_suggest:'پیشنهاد شروع از',
+    grammar_assess_disclaimer:'این یه تخمین تقریبیه، نه یه آزمون رسمی CEFR.',
+    grammar_loading:'در حال بارگذاری…', grammar_generating:'اولین‌بارِ باز کردن این درسه، داره ساخته می‌شه…',
+    grammar_verb_not_found:'فعلی با این شکل پیدا نشد. شاید یک فعل باقاعده‌ست (فقط ed+ اضافه کن).',
+    grammar_verb_past:'گذشته‌ی ساده', grammar_verb_pp:'اسم مفعول'
   }
 };
 function t(key){
@@ -98,7 +150,13 @@ const ICONS = {
   close: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
   pencil: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>',
   clock: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>',
-  grammar: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V6a2 2 0 012-2h11l3 3v12"/><path d="M9 8h7M9 12h7M9 16h4"/></svg>'
+  grammar: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V6a2 2 0 012-2h11l3 3v12"/><path d="M9 8h7M9 12h7M9 16h4"/></svg>',
+  grammarDoc: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l5 5v13a1 1 0 01-1 1H6a1 1 0 01-1-1V4a1 1 0 011-1z"/><path d="M14 3v5h5"/><path d="M8 13h8M8 17h5"/></svg>',
+  testShield: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>',
+  bookCheck: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>',
+  sortAZ: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3l4 4-8 8-4 1 1-4 8-8z"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h7"/></svg>',
+  search: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>',
+  check: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
 };
 function icon(name){ return ICONS[name] || ''; }
 
@@ -235,7 +293,7 @@ document.getElementById('saveGemini').addEventListener('click', ()=>{
 if(localStorage.getItem('etg_provider')){ /* handled by splash advance */ }
 
 /* ================= navigation (views + back stack) ================= */
-const VIEWS = ['home','modeSelect','generateTopic','generateWords','generateAuto','generateResult','vocabulary','vocabReview','history','templates','grammarHome','grammarAssess','grammarTopic','grammarVerbs'];
+const VIEWS = ['home','modeSelect','generateTopic','generateWords','generateAuto','generateResult','vocabulary','vocabReview','history','templates','grammarHome','grammarLevelGroup','grammarTenses','grammarStudied','grammarSearch','grammarAssess','grammarTopic'];
 let navStack = ['home'];
 function showOnly(view){
   VIEWS.forEach(v=> document.getElementById('view-'+v).classList.toggle('active', v===view));
@@ -248,6 +306,12 @@ function afterShow(view){
   if(view==='history') renderHistory();
   if(view==='templates'){ renderTemplates(); renderUsageStats(); }
   if(view==='grammarHome') renderGrammarHome();
+  if(view==='grammarLevelGroup') renderGrammarLevelGroup();
+  if(view==='grammarTenses') renderGrammarTenses();
+  if(view==='grammarStudied') renderGrammarStudied();
+  if(view==='grammarSearch') renderGrammarSearch();
+  if(view==='grammarAssess') renderGrammarAssessIntro();
+  if(view==='grammarTopic' && currentGrammarTopic) renderGrammarTopicPage();
 }
 function goTo(view){
   navStack.push(view);

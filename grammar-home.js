@@ -1,95 +1,200 @@
-/* ===== grammar-home.js: roadmap, badges, progress, scheduling ===== */
-
-function grammarProgress(){ return LS.get('etg_grammar_progress', { topics:{}, setupDone:false, mode:null }); }
-function saveGrammarProgress(p){ LS.set('etg_grammar_progress', p); }
-function topicState(p, id){ return p.topics[id] || { box:0, nextReview:null, attempts:0, correct:0, longMastery:false }; }
-function topicBadge(st){
-  if(!st || st.box===0) return {cls:'tb-new', label:'شروع نشده'};
-  if(st.longMastery) return {cls:'tb-long', label:'تسلط پایدار'};
-  if(st.box>=2) return {cls:'tb-short', label:'تسلط اولیه'};
-  return {cls:'tb-learning', label:'در حال یادگیری'};
-}
-function scheduleGrammarTopic(p, id, correct){
-  const st = topicState(p, id);
-  st.attempts++;
-  if(correct){
-    st.correct++;
-    st.box = Math.min((st.box||0)+1, 5);
-    if(st.box>=4) st.longMastery = true;
-  } else {
-    st.box = Math.max((st.box||1)-1, 1);
-    st.longMastery = false;
-  }
-  const days = LEITNER_INTERVALS[st.box] ?? 0;
-  const d = new Date(); d.setDate(d.getDate()+days);
-  st.nextReview = d.toISOString().slice(0,10);
-  p.topics[id] = st;
-  saveGrammarProgress(p);
-}
-function dueTopicsCount(p){
-  const today = todayISO();
-  return GRAMMAR_TOPICS.filter(tp=>{
-    const st = p.topics[tp.id];
-    return st && st.box>0 && st.nextReview && st.nextReview<=today;
-  }).length;
-}
-
+/* ===== grammar-home.js: home grid, level groups, tenses, studied, search, continue-learning ===== */
+document.getElementById('homeGrammarCard').addEventListener('click', ()=> goTo('grammarHome'));
 document.getElementById('homeGrammarCtaIcon').innerHTML = icon('grammar');
-document.getElementById('homeGrammarCard').addEventListener('click', ()=>goTo('grammarHome'));
 
+function statusLabel(status){
+  if(status === GRAMMAR_STATUS.COMPLETED) return t('grammar_status_completed');
+  if(status === GRAMMAR_STATUS.LEARNING) return t('grammar_status_learning');
+  return t('grammar_status_not_started');
+}
+function topicTitle(tp){
+  const lang = localStorage.getItem('etg_lang') || 'en';
+  return (lang === 'fa' ? tp.titleFa : tp.titleEn) || tp.titleFa || tp.titleEn;
+}
+function statusBadgeClass(status){
+  if(status === GRAMMAR_STATUS.COMPLETED) return 'tb-completed';
+  if(status === GRAMMAR_STATUS.LEARNING) return 'tb-learning';
+  return 'tb-new';
+}
+
+/* ---- home grid ---- */
+const GRAMMAR_HOME_CARDS = [
+  { key:'a', icon:'grammarDoc', tint:'a', titleKey:'grammar_card_a_title', subKey:'grammar_card_a_sub', action:()=>openLevelGroup('A') },
+  { key:'b', icon:'grammarDoc', tint:'a', titleKey:'grammar_card_b_title', subKey:'grammar_card_b_sub', action:()=>openLevelGroup('B') },
+  { key:'c', icon:'grammarDoc', tint:'a', titleKey:'grammar_card_c_title', subKey:'grammar_card_c_sub', action:()=>openLevelGroup('C') },
+  { key:'tenses', icon:'clock', tint:'b', titleKey:'grammar_card_tenses_title', subKey:'grammar_card_tenses_sub', action:()=>goTo('grammarTenses') },
+  { key:'test', icon:'testShield', tint:'b', titleKey:'grammar_card_test_title', subKey:'grammar_card_test_sub', action:()=>goTo('grammarAssess') },
+  { key:'studied', icon:'bookCheck', tint:'a', titleKey:'grammar_card_studied_title', subKey:'grammar_card_studied_sub', action:()=>goTo('grammarStudied') },
+  { key:'verbs', icon:'sortAZ', tint:'b', titleKey:'grammar_card_verbs_title', subKey:'grammar_card_verbs_sub', action:()=>openVerbsModal() },
+  { key:'search', icon:'search', tint:'a', titleKey:'grammar_card_search_title', subKey:'grammar_card_search_sub', action:()=>goTo('grammarSearch') }
+];
 function renderGrammarHome(){
-  const p = grammarProgress();
   const wrap = document.getElementById('grammarHomeWrap');
-  if(!p.setupDone){
-    wrap.innerHTML = `
-      <button class="topic-row" id="openVerbToolBtn" style="margin-bottom:18px">
-        <span class="t-name">🔤 جست‌وجوی صرف افعال بی‌قاعده</span><span style="color:var(--muted)">›</span>
-      </button>
-      <div class="card" style="margin-bottom:14px">
-        <h3 style="margin:0 0 8px">آموزش از ابتدا</h3>
-        <p class="hint" style="margin-bottom:14px">نقشه راه کامل گرامر رو از پایه شروع کن، قدم‌به‌قدم، بدون آزمون.</p>
-        <button class="primary-btn" id="startScratchBtn" style="width:auto">شروع از ابتدا</button>
-      </div>
-      <div class="card">
-        <h3 style="margin:0 0 8px">آموزش بر اساس سطح</h3>
-        <p class="hint" style="margin-bottom:14px">یه آزمون کوتاه (حداکثر ۲۰ سؤال) بزن؛ مباحثی که بلدی خودکار تیک می‌خورن، بقیه رو قدم‌به‌قدم یاد می‌گیری.</p>
-        <button class="primary-btn" id="startPlacementBtn" style="width:auto">شروع آزمون تعیین سطح</button>
-      </div>`;
-    document.getElementById('openVerbToolBtn').addEventListener('click', ()=>{ goTo('grammarVerbs'); renderAllVerbsList(); });
-    document.getElementById('startScratchBtn').addEventListener('click', ()=>{
-      const p2 = grammarProgress(); p2.setupDone = true; p2.mode = 'scratch'; saveGrammarProgress(p2); renderGrammarHome();
-    });
-    document.getElementById('startPlacementBtn').addEventListener('click', ()=>startPlacementTest());
+  wrap.innerHTML = `
+    <div class="g-grid">
+      ${GRAMMAR_HOME_CARDS.map(c=>`
+        <button class="g-card tint-${c.tint}" data-gcard="${c.key}">
+          <div class="icon-badge">${icon(c.icon)}</div>
+          <div><h3>${escapeHtml(t(c.titleKey))}</h3><p>${escapeHtml(t(c.subKey))}</p></div>
+        </button>`).join('')}
+    </div>
+    <div class="section-label">${escapeHtml(t('grammar_continue_label'))}</div>
+    <div id="grammarContinueWrap"></div>
+  `;
+  GRAMMAR_HOME_CARDS.forEach(c=>{
+    wrap.querySelector(`[data-gcard="${c.key}"]`).addEventListener('click', c.action);
+  });
+  renderContinueLearning();
+}
+function renderContinueLearning(){
+  const wrap = document.getElementById('grammarContinueWrap');
+  const cont = getContinueLearning();
+  const tp = cont && GRAMMAR_TOPICS.find(x=>x.id===cont.topicId);
+  if(!tp){
+    wrap.innerHTML = `<div class="card empty"><div class="big">${escapeHtml(t('grammar_continue_empty_title'))}</div>${escapeHtml(t('grammar_continue_empty_sub'))}</div>`;
     return;
   }
-  const due = dueTopicsCount(p);
-  let html = `<button class="topic-row" id="openVerbToolBtn2" style="margin-bottom:16px">
-      <span class="t-name">🔤 جست‌وجوی صرف افعال بی‌قاعده</span><span style="color:var(--muted)">›</span>
-    </button>`;
-  if(due>0) html += `<div class="warn-box" style="margin-bottom:16px">🔁 ${due} مبحث امروز برای مرور آماده‌ست</div>`;
-  GRAMMAR_LEVELS.forEach(level=>{
-    const topics = GRAMMAR_TOPICS.filter(tp=>tp.level===level);
-    if(!topics.length) return;
-    const masteredCount = topics.filter(tp=> (p.topics[tp.id]||{}).longMastery).length;
-    html += `<div class="level-block"><h3>${level} · ${masteredCount}/${topics.length}</h3>`;
-    html += `<div class="progress-bar-outer" style="margin-bottom:10px"><div class="progress-bar-inner" style="width:${Math.round(masteredCount/topics.length*100)}%"></div></div>`;
-    topics.forEach(tp=>{
-      const st = p.topics[tp.id];
-      const badge = topicBadge(st);
-      const isDue = st && st.box>0 && st.nextReview && st.nextReview<=todayISO();
-      html += `<button class="topic-row" data-topic="${tp.id}">
-        <span class="t-name">${escapeHtml(tp.titleFa)}${isDue?' 🔁':''}</span>
-        <span class="topic-badge ${badge.cls}">${badge.label}</span>
-      </button>`;
-    });
-    html += `</div>`;
-  });
-  html += `<button class="ghost-btn" id="retakeAssessBtn" style="width:100%;margin-top:6px">آزمون تعیین سطح رو دوباره بزن</button>`;
-  wrap.innerHTML = html;
-  wrap.querySelectorAll('[data-topic]').forEach(b=> b.addEventListener('click', ()=> openGrammarTopic(b.dataset.topic)));
-  document.getElementById('openVerbToolBtn2').addEventListener('click', ()=>{ goTo('grammarVerbs'); renderAllVerbsList(); });
-  document.getElementById('retakeAssessBtn').addEventListener('click', ()=>{
-    const p2 = grammarProgress(); p2.setupDone = false; saveGrammarProgress(p2); renderGrammarHome();
+  const status = getGrammarStatus(tp.id);
+  const pct = status === GRAMMAR_STATUS.COMPLETED ? 100 : status === GRAMMAR_STATUS.LEARNING ? 55 : 8;
+  wrap.innerHTML = `
+    <div class="continue-card" id="continueCard">
+      <div class="continue-avatar">${icon('grammarDoc')}</div>
+      <div class="continue-body">
+        <h3>${escapeHtml(topicTitle(tp))}</h3>
+        <div class="meta">${escapeHtml(tp.level)} · ${escapeHtml(statusLabel(status))}</div>
+        <div class="continue-progress"><div class="continue-progress-fill" style="width:${pct}%"></div></div>
+      </div>
+      <button class="continue-pill">${escapeHtml(t('grammar_continue_btn'))} ←</button>
+    </div>`;
+  document.getElementById('continueCard').addEventListener('click', ()=> openGrammarTopic(tp.id));
+}
+
+/* ---- level group (A / B / C) ---- */
+let currentGrammarGroup = 'A';
+function openLevelGroup(group){
+  currentGrammarGroup = group;
+  goTo('grammarLevelGroup');
+}
+function renderGrammarLevelGroup(){
+  const group = currentGrammarGroup;
+  document.getElementById('grammarLevelGroupHeading').textContent = t('grammar_card_' + group.toLowerCase() + '_title');
+  const wrap = document.getElementById('grammarLevelGroupWrap');
+  const topics = topicsInGroup(group);
+  wrap.innerHTML = topics.map(tp=>{
+    const status = getGrammarStatus(tp.id);
+    return `<div class="topic-row" data-topicrow="${tp.id}">
+      <div><div class="tr-title">${escapeHtml(topicTitle(tp))}</div><div class="tr-level">${escapeHtml(tp.level)}</div></div>
+      <span class="topic-badge ${statusBadgeClass(status)}">${status===GRAMMAR_STATUS.COMPLETED ? icon('check') : escapeHtml(statusLabel(status))}</span>
+    </div>`;
+  }).join('');
+  wrap.querySelectorAll('[data-topicrow]').forEach(el=>{
+    el.addEventListener('click', ()=> openGrammarTopic(el.dataset.topicrow));
   });
 }
 
+/* ---- tenses ---- */
+function renderGrammarTenses(){
+  const wrap = document.getElementById('grammarTensesWrap');
+  const active = tenseTopics();
+  const passive = passiveTopics();
+  const rowsHtml = (list) => list.map(tp=>{
+    const status = getGrammarStatus(tp.id);
+    return `<div class="topic-row" data-topicrow="${tp.id}">
+      <div><div class="tr-title">${escapeHtml(topicTitle(tp))}</div><div class="tr-level">${escapeHtml(tp.level)}</div></div>
+      <span class="topic-badge ${statusBadgeClass(status)}">${status===GRAMMAR_STATUS.COMPLETED ? icon('check') : escapeHtml(statusLabel(status))}</span>
+    </div>`;
+  }).join('');
+  wrap.innerHTML = `
+    <div class="section-label">${escapeHtml(t('grammar_tenses_timeline'))}</div>
+    <div class="timeline-wrap">
+      <div class="timeline-line"></div>
+      <div class="timeline-items">
+        ${active.map(tp=>`<div class="timeline-item" data-topicrow="${tp.id}"><div class="timeline-dot"></div><div class="tt-name">${escapeHtml(topicTitle(tp))}</div></div>`).join('')}
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin:2px 4px 20px">
+      <span>${escapeHtml(t('grammar_tenses_past'))}</span><span>${escapeHtml(t('grammar_tenses_now'))}</span><span>${escapeHtml(t('grammar_tenses_future'))}</span>
+    </div>
+
+    <div class="section-label">${escapeHtml(t('grammar_tenses_active'))}</div>
+    <div class="tense-list">${rowsHtml(active)}</div>
+
+    <div class="section-label">${escapeHtml(t('grammar_tenses_passive'))}</div>
+    <div class="tense-list">${rowsHtml(passive)}</div>
+
+    <div class="section-label">${escapeHtml(t('grammar_tenses_compare'))}</div>
+    <div id="compareWrap"></div>
+  `;
+  wrap.querySelectorAll('[data-topicrow]').forEach(el=>{
+    el.addEventListener('click', ()=> openGrammarTopic(el.dataset.topicrow));
+  });
+  const compareWrap = document.getElementById('compareWrap');
+  compareWrap.innerHTML = TENSE_COMPARE_PAIRS.map(([id1,id2])=>{
+    const t1 = GRAMMAR_TOPICS.find(x=>x.id===id1), t2 = GRAMMAR_TOPICS.find(x=>x.id===id2);
+    if(!t1 || !t2) return '';
+    return `<div class="compare-block" data-compare1="${id1}" data-compare2="${id2}">
+      <div style="font-weight:700;font-size:13.5px">${escapeHtml(topicTitle(t1))}</div>
+      <div class="compare-vs">vs</div>
+      <div style="font-weight:700;font-size:13.5px">${escapeHtml(topicTitle(t2))}</div>
+    </div>`;
+  }).join('');
+  compareWrap.querySelectorAll('[data-compare1]').forEach(el=>{
+    el.addEventListener('click', ()=> openGrammarTopic(el.dataset.compare1));
+  });
+}
+
+/* ---- studied grammar ---- */
+function renderGrammarStudied(){
+  const wrap = document.getElementById('grammarStudiedWrap');
+  const map = getGrammarStatusMap();
+  const doneIds = Object.keys(map).filter(id => map[id] === GRAMMAR_STATUS.COMPLETED);
+  const topics = doneIds.map(id => GRAMMAR_TOPICS.find(x=>x.id===id)).filter(Boolean);
+  if(!topics.length){
+    wrap.innerHTML = `<div class="empty"><div class="big">${escapeHtml(t('grammar_studied_title'))}</div>${escapeHtml(t('grammar_studied_empty'))}</div>`;
+    return;
+  }
+  wrap.innerHTML = topics.map(tp=>`
+    <div class="topic-row" data-topicrow="${tp.id}">
+      <div><div class="tr-title">${escapeHtml(topicTitle(tp))}</div><div class="tr-level">${escapeHtml(tp.level)}</div></div>
+      <span class="topic-badge tb-completed">${icon('check')}</span>
+    </div>`).join('');
+  wrap.querySelectorAll('[data-topicrow]').forEach(el=>{
+    el.addEventListener('click', ()=> openGrammarTopic(el.dataset.topicrow));
+  });
+}
+
+/* ---- search grammar ---- */
+function renderGrammarSearch(){
+  document.getElementById('grammarSearchInput').value = '';
+  document.getElementById('grammarSearchResults').innerHTML = '';
+}
+document.getElementById('grammarSearchInput').addEventListener('input', (e)=>{
+  const q = e.target.value.trim().toLowerCase();
+  const results = document.getElementById('grammarSearchResults');
+  if(!q){ results.innerHTML = ''; return; }
+  const matches = GRAMMAR_TOPICS.filter(tp =>
+    (tp.titleFa||'').toLowerCase().includes(q) || (tp.titleEn||'').toLowerCase().includes(q)
+  );
+  if(!matches.length){ results.innerHTML = `<div class="empty"><div class="big">${escapeHtml(t('grammar_search_empty'))}</div></div>`; return; }
+  results.innerHTML = matches.map(tp=>{
+    const status = getGrammarStatus(tp.id);
+    return `<div class="topic-row" data-topicrow="${tp.id}">
+      <div><div class="tr-title">${escapeHtml(topicTitle(tp))}</div><div class="tr-level">${escapeHtml(tp.level)}</div></div>
+      <span class="topic-badge ${statusBadgeClass(status)}">${status===GRAMMAR_STATUS.COMPLETED ? icon('check') : escapeHtml(statusLabel(status))}</span>
+    </div>`;
+  }).join('');
+  results.querySelectorAll('[data-topicrow]').forEach(el=>{
+    el.addEventListener('click', ()=> openGrammarTopic(el.dataset.topicrow));
+  });
+});
+
+/* ---- irregular verbs modal ---- */
+function openVerbsModal(){
+  document.getElementById('verbsModal').classList.add('open');
+  document.getElementById('verbSearchInput').value = '';
+  document.getElementById('verbSearchResult').innerHTML = '';
+  renderAllVerbsList();
+}
+document.getElementById('closeVerbsModal').addEventListener('click', ()=>{
+  document.getElementById('verbsModal').classList.remove('open');
+});

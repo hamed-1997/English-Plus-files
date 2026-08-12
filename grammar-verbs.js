@@ -15,14 +15,14 @@ function renderVerbSearchResult(){
   if(!q.trim()){ box.innerHTML=''; return; }
   const v = findVerb(q);
   if(!v){
-    box.innerHTML = `<div class="warn-box">فعلی با این شکل پیدا نشد. شاید یک فعل باقاعده‌ست (فقط ed+ اضافه کن).</div>`;
+    box.innerHTML = `<div class="warn-box">${escapeHtml(t('grammar_verb_not_found'))}</div>`;
     return;
   }
   box.innerHTML = `
     <div class="word-card">
-      <div class="w-top"><span class="w-name">${escapeHtml(v.base)}</span></div>
-      <div class="kv-meaning">Past Simple: <b>${escapeHtml(v.past)}</b></div>
-      <div class="kv-meaning">Past Participle: <b>${escapeHtml(v.pp)}</b></div>
+      <div class="w-top"><span class="w-name ltr-block">${escapeHtml(v.base)}</span></div>
+      <div class="kv-meaning">${escapeHtml(t('grammar_verb_past'))}: <b class="ltr-block" style="display:inline">${escapeHtml(v.past)}</b></div>
+      <div class="kv-meaning">${escapeHtml(t('grammar_verb_pp'))}: <b class="ltr-block" style="display:inline">${escapeHtml(v.pp)}</b></div>
     </div>`;
 }
 document.getElementById('verbSearchBtn').addEventListener('click', renderVerbSearchResult);
@@ -31,8 +31,8 @@ function renderAllVerbsList(){
   const wrap = document.getElementById('verbListAll');
   wrap.innerHTML = IRREGULAR_VERBS.map(v=>`
     <div class="topic-row" style="cursor:default">
-      <span class="t-name">${v.base}</span>
-      <span class="hint">${v.past} · ${v.pp}</span>
+      <span class="t-name ltr-block">${escapeHtml(v.base)}</span>
+      <span class="hint ltr-block">${escapeHtml(v.past)} · ${escapeHtml(v.pp)}</span>
     </div>`).join('');
 }
 

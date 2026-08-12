@@ -4220,3 +4220,49 @@ const IRREGULAR_VERBS = [
 
 const GRAMMAR_LEVELS = ['A1','A2','B1','B2','C1'];
 const PLACEMENT_SAMPLE_SIZE = 4;
+
+/* ---- derived English titles (from topic id) ---- */
+function titleCaseFromId(id){
+  return id.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+GRAMMAR_TOPICS.forEach(tp => { tp.titleEn = titleCaseFromId(tp.id); });
+
+/* ---- level groups (A / B / C) for the redesigned home ---- */
+const GRAMMAR_GROUPS = {
+  A: ['A1','A2'],
+  B: ['B1','B2'],
+  C: ['C1']
+};
+function topicsInGroup(group){
+  return GRAMMAR_TOPICS.filter(tp => GRAMMAR_GROUPS[group].includes(tp.level));
+}
+
+/* ---- tenses: active voice (temporal order) + passive voice topics ---- */
+const TENSE_ORDER = [
+  'present_simple','present_continuous','past_simple','past_continuous',
+  'present_perfect','present_perfect_continuous','past_perfect','past_perfect_continuous',
+  'future_will','future_going_to','future_continuous','future_perfect','future_perfect_continuous'
+];
+const PASSIVE_TOPIC_IDS = ['passive_basic','passive_advanced'];
+function tenseTopics(){ return TENSE_ORDER.map(id => GRAMMAR_TOPICS.find(tp => tp.id === id)).filter(Boolean); }
+function passiveTopics(){ return PASSIVE_TOPIC_IDS.map(id => GRAMMAR_TOPICS.find(tp => tp.id === id)).filter(Boolean); }
+const TENSE_COMPARE_PAIRS = [
+  ['present_perfect','past_simple'],
+  ['past_simple','past_continuous'],
+  ['present_simple','present_continuous'],
+  ['present_perfect','present_perfect_continuous']
+];
+
+/* ---- simple 3-state progress status (no spaced repetition) ---- */
+const GRAMMAR_STATUS = { NOT_STARTED: 'not_started', LEARNING: 'learning', COMPLETED: 'completed' };
+function getGrammarStatusMap(){ return LS.get('etg_grammar_status', {}); }
+function setGrammarStatus(topicId, status){
+  const map = getGrammarStatusMap();
+  map[topicId] = status;
+  LS.set('etg_grammar_status', map);
+}
+function getGrammarStatus(topicId){ return getGrammarStatusMap()[topicId] || GRAMMAR_STATUS.NOT_STARTED; }
+function setContinueLearning(topicId){
+  LS.set('etg_grammar_continue', { topicId, openedAt: new Date().toISOString() });
+}
+function getContinueLearning(){ return LS.get('etg_grammar_continue', null); }

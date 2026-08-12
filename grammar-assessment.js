@@ -1,4 +1,4 @@
-/* ===== grammar-assessment.js: placement test ===== */
+/* ===== grammar-assessment.js: adaptive placement test (A -> B -> C), 3-state result ===== */
 function getPlacementQuestions(){
   const list = [];
   GRAMMAR_LEVELS.forEach(level=>{
@@ -9,11 +9,24 @@ function getPlacementQuestions(){
   return list;
 }
 let placementQueue = [], placementIdx = 0, placementScores = {};
+
+function renderGrammarAssessIntro(){
+  const wrap = document.getElementById('grammarAssessWrap');
+  wrap.innerHTML = `
+    <div class="card" style="text-align:center;padding:26px 20px">
+      <div class="icon-badge tint-a" style="width:56px;height:56px;border-radius:16px;margin:0 auto 14px;background:var(--teal-tint);color:var(--teal-dark);display:flex;align-items:center;justify-content:center">${icon('testShield')}</div>
+      <h3 style="margin:0 0 8px">${escapeHtml(t('grammar_assess_title'))}</h3>
+      <p class="hint" style="margin-bottom:4px">${escapeHtml(t('grammar_assess_disclaimer'))}</p>
+      <button class="primary-btn" id="startPlacementBtn" style="width:auto;margin-top:14px">${escapeHtml(t('grammar_card_test_sub'))}</button>
+    </div>`;
+  const btn = document.getElementById('startPlacementBtn');
+  if(btn) btn.addEventListener('click', ()=>startPlacementTest());
+}
+
 function startPlacementTest(){
   placementQueue = getPlacementQuestions();
   placementIdx = 0;
   placementScores = {};
-  goTo('grammarAssess');
   renderPlacementQuestion();
 }
 function renderPlacementQuestion(){
@@ -23,13 +36,13 @@ function renderPlacementQuestion(){
   wrap.innerHTML = `
     <div class="hint" style="margin-bottom:10px">${placementIdx+1} / ${placementQueue.length} · ${q.level}</div>
     <div class="card">
-      <p style="font-size:15.5px;font-weight:600;margin:0 0 14px">${escapeHtml(q.q)}</p>
+      <p class="ltr-block" style="font-size:15.5px;font-weight:600;margin:0 0 14px">${escapeHtml(q.q)}</p>
       <div id="placementOptions"></div>
     </div>`;
   const opts = document.getElementById('placementOptions');
   q.options.forEach((opt,i)=>{
     const b = document.createElement('button');
-    b.className = 'quiz-option'; b.textContent = opt;
+    b.className = 'quiz-option ltr-block'; b.textContent = opt;
     b.addEventListener('click', ()=>{
       document.querySelectorAll('#placementOptions .quiz-option').forEach(x=>x.disabled=true);
       const correct = i===q.answer;
@@ -52,30 +65,33 @@ function renderPlacementQuestion(){
   });
 }
 function finishPlacement(){
-  const p = grammarProgress();
+  const passedLevels = [];
+  let weakLevel = null;
   GRAMMAR_LEVELS.forEach(level=>{
     const sc = placementScores[level];
     if(sc && sc.correct/sc.total >= 0.75){
+      passedLevels.push(level);
+      GRAMMAR_TOPICS.filter(tp=>tp.level===level).forEach(tp=> setGrammarStatus(tp.id, GRAMMAR_STATUS.COMPLETED));
+    } else if(sc && weakLevel===null){
+      weakLevel = level;
       GRAMMAR_TOPICS.filter(tp=>tp.level===level).forEach(tp=>{
-        const st = topicState(p, tp.id);
-        if(st.box < 3){
-          st.box = 3; st.longMastery = false;
-          const d = new Date(); d.setDate(d.getDate()+3);
-          st.nextReview = d.toISOString().slice(0,10);
-          p.topics[tp.id] = st;
-        }
+        if(getGrammarStatus(tp.id) === GRAMMAR_STATUS.NOT_STARTED) setGrammarStatus(tp.id, GRAMMAR_STATUS.LEARNING);
       });
     }
   });
-  p.setupDone = true; p.mode = 'placement';
-  saveGrammarProgress(p);
+  const estimatedLevel = passedLevels.length ? passedLevels[passedLevels.length-1] : (GRAMMAR_LEVELS[0]);
+  const rangeText = weakLevel ? `${estimatedLevel}–${weakLevel}` : estimatedLevel;
   const wrap = document.getElementById('grammarAssessWrap');
   wrap.innerHTML = `
     <div class="card" style="text-align:center;padding:26px 20px">
-      <h3 style="margin:0 0 8px">آزمون تموم شد! 🎉</h3>
-      <p class="hint" style="margin-bottom:18px">مباحثی که بلد بودی تیک خوردن. نقشه راهت آماده‌ست.</p>
-      <button class="primary-btn" id="finishAssessBtn" style="width:auto">مشاهده نقشه راه</button>
+      <div style="font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-bottom:6px">${escapeHtml(t('grammar_assess_result_title'))}</div>
+      <h3 style="margin:0 0 4px;font-size:28px;font-family:'Fraunces',serif">${escapeHtml(estimatedLevel)}</h3>
+      <div class="hint" style="margin-bottom:16px">${escapeHtml(t('grammar_assess_range'))}: ${escapeHtml(rangeText)}</div>
+      ${passedLevels.length ? `<div class="hint" style="margin-bottom:6px">${escapeHtml(t('grammar_assess_strong'))}: ${passedLevels.map(l=>escapeHtml(l)).join(', ')}</div>` : ''}
+      ${weakLevel ? `<div class="hint" style="margin-bottom:6px">${escapeHtml(t('grammar_assess_weak'))}: ${escapeHtml(weakLevel)}</div>` : ''}
+      <div class="hint" style="margin-bottom:16px">${escapeHtml(t('grammar_assess_suggest'))}: <b>${escapeHtml(weakLevel || estimatedLevel)}</b></div>
+      <p class="hint" style="font-size:11px;margin-bottom:16px">${escapeHtml(t('grammar_assess_disclaimer'))}</p>
+      <button class="primary-btn" id="finishAssessBtn" style="width:auto">${escapeHtml(t('grammar_continue_btn'))}</button>
     </div>`;
   document.getElementById('finishAssessBtn').addEventListener('click', ()=> goToRoot('grammarHome'));
 }
-

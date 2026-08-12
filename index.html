@@ -9,7 +9,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&family=Vazirmatn:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://js.puter.com/v2/"></script>
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -102,7 +101,6 @@
       <span class="home-cta" id="homeCta"><span id="homeCtaIcon"></span><span data-i18n="home_cta">Start Reading</span></span>
     </button>
     <button class="home-big-card amber-card" id="homeGrammarCard">
-      <div class="eyebrow" data-i18n="home_grammar_eyebrow">Grammar</div>
       <h2 data-i18n="home_grammar_title">Grammar</h2>
       <p data-i18n="home_grammar_sub">Diagnose, build a roadmap, and reach full mastery</p>
       <span class="home-cta" id="homeGrammarCta" style="background:var(--teal)"><span id="homeGrammarCtaIcon"></span><span data-i18n="home_grammar_cta">Open Grammar</span></span>
@@ -337,8 +335,33 @@
 
   <!-- GRAMMAR HOME -->
   <section class="view" id="view-grammarHome">
-    <div class="page-header"><button class="back-btn" data-back><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button><h2 data-i18n="home_grammar_title">Grammar</h2></div>
+    <div class="page-header"><button class="back-btn" data-back><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button><h2 data-i18n="grammar_page_title">Grammar</h2></div>
     <div id="grammarHomeWrap"></div>
+  </section>
+
+  <!-- GRAMMAR LEVEL GROUP (A / B / C) -->
+  <section class="view" id="view-grammarLevelGroup">
+    <div class="page-header"><button class="back-btn" data-back><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button><h2 id="grammarLevelGroupHeading"></h2></div>
+    <div id="grammarLevelGroupWrap"></div>
+  </section>
+
+  <!-- GRAMMAR TENSES -->
+  <section class="view" id="view-grammarTenses">
+    <div class="page-header"><button class="back-btn" data-back><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button><h2 data-i18n="grammar_tenses_title">Tenses</h2></div>
+    <div id="grammarTensesWrap"></div>
+  </section>
+
+  <!-- STUDIED GRAMMAR -->
+  <section class="view" id="view-grammarStudied">
+    <div class="page-header"><button class="back-btn" data-back><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button><h2 data-i18n="grammar_studied_title">Studied Grammar</h2></div>
+    <div id="grammarStudiedWrap"></div>
+  </section>
+
+  <!-- SEARCH GRAMMAR -->
+  <section class="view" id="view-grammarSearch">
+    <div class="page-header"><button class="back-btn" data-back><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button><h2 data-i18n="grammar_card_search_title">Search Grammar</h2></div>
+    <div class="searchbar"><span class="sicon"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></span><input type="text" id="grammarSearchInput" data-i18n-ph="grammar_search_ph" placeholder="Search a grammar topic…"></div>
+    <div id="grammarSearchResults"></div>
   </section>
 
   <!-- GRAMMAR ASSESSMENT -->
@@ -353,17 +376,22 @@
     <div id="grammarTopicWrap"></div>
   </section>
 
-  <!-- GRAMMAR VERB LOOKUP -->
-  <section class="view" id="view-grammarVerbs">
-    <div class="page-header"><button class="back-btn" data-back><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button><h2 data-i18n="grammar_verbs_title">Irregular Verbs</h2></div>
+</main>
+
+<!-- IRREGULAR VERBS MODAL -->
+<div class="modal-bg" id="verbsModal">
+  <div class="modal" style="max-width:420px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <h2 style="margin:0" data-i18n="grammar_verbs_title">Irregular Verbs</h2>
+      <button class="icon-btn" id="closeVerbsModal" style="width:32px;height:32px"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
     <div class="field" style="margin-bottom:10px"><input type="text" id="verbSearchInput" placeholder="e.g. go"></div>
     <button class="primary-btn" id="verbSearchBtn" style="width:100%;margin-bottom:14px" data-i18n="grammar_verbs_search">Search</button>
     <div id="verbSearchResult"></div>
     <div class="hint" style="margin-top:16px" data-i18n="grammar_verbs_all">Or browse the full list below:</div>
-    <div id="verbListAll" style="margin-top:10px"></div>
-  </section>
-
-</main>
+    <div id="verbListAll" style="margin-top:10px;max-height:280px;overflow-y:auto"></div>
+  </div>
+</div>
 
 <div class="bottom-nav" id="bottomNav">
   <button class="bn-item" data-goroot="home"><span class="bn-icon" id="bnIconHome"></span><span data-i18n="nav_home">Home</span><span class="bn-dot"></span></button>
