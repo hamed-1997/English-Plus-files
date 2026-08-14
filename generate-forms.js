@@ -43,7 +43,6 @@ const vocabUsageText = {
   high: 'Deliberately introduce a good number of new, richer, or more advanced words beyond the base level, while keeping the text understandable overall.'
 };
 function buildTopicPrompt(s){
-  const known = LS.get('etg_vocab', []).map(v=>v.word);
   return `You are a CEFR-aligned English text generator for language learners. Generate ONE learning text that strictly follows these constraints:
 
 - Overall level (CEFR): ${s.grammarLevel} — ${CEFR_DESCRIPTORS[s.grammarLevel] || ''}
@@ -59,8 +58,6 @@ Rules:
 - Grammar structures must match the ${s.grammarLevel} level and emphasize ${s.grammarFocus}.
 - Do not include a header like "Title:" inside the text body.
 - Output must be natural and coherent, not a disjointed list of sentences.
-- From the text, identify EVERY word or short phrase that a learner at the ${s.grammarLevel} level is genuinely likely to NOT already know — not just a few "important" words, but a thorough list of the harder, less common, or topic-specific words in the text. Skip only the most basic, everyday words. Aim for a complete list rather than a short curated sample (this can be anywhere from a handful to 20+ words depending on the text).
-${known.length ? '- Do NOT include any of these words the learner has already saved, even if they appear in the text: ' + known.join(', ') + '.' : ''}
 
 Respond with ONLY valid JSON (no markdown fences, no commentary) in exactly this shape:
 {
@@ -68,10 +65,7 @@ Respond with ONLY valid JSON (no markdown fences, no commentary) in exactly this
   "text": "the full generated text",
   "estimatedCEFR": "your honest estimate of the resulting CEFR level, e.g. B1",
   "vocabNote": "one short sentence describing the vocabulary distribution",
-  "dialogueLines": [],
-  "keyVocabulary": [
-    {"word":"...", "meaningEn":"short English definition", "meaningFa":"Persian translation (فارسی)", "example":"one example sentence", "ipa":"IPA transcription", "phoneticFa":"simplified Persian-readable pronunciation", "cefr":"CEFR level of this word"}
-  ]
+  "dialogueLines": []
 }`;
 }
 const CEFR_DESCRIPTORS = {
@@ -102,28 +96,32 @@ document.getElementById('generateTopicBtn').addEventListener('click', ()=>{
   runFullGeneration(s, 'loadingRowTopic', 'generateTopicBtn');
 });
 
+async function generateFromSettings(s, onProgress){
+  if(onProgress) onProgress('Generating your text…');
+  if(s.mode === 'words'){
+    const result = await callAI(buildWordsPrompt(s));
+    return { result, finalText: result.text || '', verifiedCEFR: '', everMatched: false };
+  }
+  const result = await callAI(buildTopicPrompt(s));
+  let finalText = result.text || '';
+  let verifiedCEFR = result.estimatedCEFR || '';
+  let everMatched = false;
+  if(onProgress) onProgress('Checking the actual level…');
+  try{
+    const verify = await callAI(buildVerifyPrompt(finalText, s.grammarLevel));
+    if(verify && verify.text){ finalText = verify.text; verifiedCEFR = verify.verifiedCEFR || verifiedCEFR; }
+    if(verify && verify.matched) everMatched = true;
+  }catch(e){ /* verification is best-effort */ }
+  return { result, finalText, verifiedCEFR, everMatched };
+}
+
 async function runFullGeneration(s, loadingId, btnId){
   const btn = document.getElementById(btnId);
   btn.disabled = true;
   const row = document.getElementById(loadingId);
   row.style.display = 'flex';
-  row.querySelector('.ll').textContent = 'Generating your text…';
   try{
-    const result = await callAI(buildTopicPrompt(s));
-    let finalText = result.text || '';
-    let verifiedCEFR = result.estimatedCEFR || '';
-    let everMatched = false;
-    for(let attempt=0; attempt<3; attempt++){
-      row.querySelector('.ll').textContent = attempt===0 ? 'Checking the actual level…' : `Refining the level (pass ${attempt+1})…`;
-      let verify;
-      try{ verify = await callAI(buildVerifyPrompt(finalText, s.grammarLevel)); }
-      catch(e){ break; }
-      if(verify && verify.text){ finalText = verify.text; verifiedCEFR = verify.verifiedCEFR || verifiedCEFR; }
-      if(verify && verify.matched) everMatched = true;
-      const localEst = estimateLocalCEFR(finalText);
-      const closeEnough = verify && verify.matched && Math.abs(cefrIndex(localEst) - cefrIndex(s.grammarLevel)) <= 1;
-      if(closeEnough) break;
-    }
+    const { result, finalText, verifiedCEFR, everMatched } = await generateFromSettings(s, (msg)=>{ row.querySelector('.ll').textContent = msg; });
     finalizeResult(result, finalText, verifiedCEFR, s, everMatched);
   }catch(err){
     toast(err.message);
@@ -131,6 +129,31 @@ async function runFullGeneration(s, loadingId, btnId){
     btn.disabled = false;
     row.style.display = 'none';
   }
+}
+function buildKeyVocabPrompt(text, level, explicitWords){
+  if(explicitWords && explicitWords.length){
+    return `Give dictionary information for each of these English words or short phrases, in this exact order: ${explicitWords.join(', ')}.
+
+Respond with ONLY valid JSON (no markdown fences) in exactly this shape:
+{
+  "keyVocabulary": [
+    {"word":"...", "meaningEn":"short English definition", "meaningFa":"Persian translation (فارسی)", "example":"one example sentence", "ipa":"IPA transcription", "phoneticFa":"simplified Persian-readable pronunciation", "cefr":"CEFR level of this word"}
+  ]
+}`;
+  }
+  const known = LS.get('etg_vocab', []).map(v=>v.word);
+  return `From the following text, find EVERY word or short phrase that a learner at the ${level} level is genuinely likely to NOT already know — not just a few "important" words, but a thorough list of the harder, less common, or topic-specific words in the text. Skip only the most basic, everyday words. Aim for a complete list rather than a short curated sample (this can be anywhere from a handful to 20+ words depending on the text).
+${known.length ? 'Do NOT include any of these words the learner has already saved, even if they appear in the text: ' + known.join(', ') + '.' : ''}
+
+TEXT:
+"""${text}"""
+
+Respond with ONLY valid JSON (no markdown fences) in exactly this shape:
+{
+  "keyVocabulary": [
+    {"word":"...", "meaningEn":"short English definition", "meaningFa":"Persian translation (فارسی)", "example":"one example sentence", "ipa":"IPA transcription", "phoneticFa":"simplified Persian-readable pronunciation", "cefr":"CEFR level of this word"}
+  ]
+}`;
 }
 function finalizeResult(result, finalText, verifiedCEFR, s, everMatched){
   const dialogueLines = result.dialogueLines || [];
@@ -143,11 +166,6 @@ function finalizeResult(result, finalText, verifiedCEFR, s, everMatched){
   const targetLevel = s.grammarLevel;
   const bigLocalGap = targetLevel ? Math.abs(cefrIndex(localCEFR) - cefrIndex(targetLevel)) >= 2 : false;
   const mismatch = targetLevel ? (!everMatched && bigLocalGap) : false;
-  const savedWords = new Set(LS.get('etg_vocab', []).map(v=>v.word.toLowerCase()));
-  let keyVocabulary = result.keyVocabulary || [];
-  if(s.mode !== 'words'){
-    keyVocabulary = keyVocabulary.filter(w=> w.word && !savedWords.has(w.word.toLowerCase()));
-  }
   currentResult = {
     id: 't_' + Date.now(),
     title: result.title || 'Untitled',
@@ -155,9 +173,9 @@ function finalizeResult(result, finalText, verifiedCEFR, s, everMatched){
     dialogueLines,
     estimatedCEFR: verifiedCEFR, localCEFR, mismatch,
     vocabNote: result.vocabNote || '',
-    keyVocabulary,
+    keyVocabulary: null,
     wordCount, sentCount, readMin,
-    settings: s, fav: false, translations: null,
+    settings: s, fav: false, translations: null, exercises: null,
     createdAt: new Date().toISOString()
   };
   const history = LS.get('etg_history', []);
@@ -215,26 +233,14 @@ Respond with ONLY valid JSON (no markdown fences) in exactly this shape:
 {
   "title": "short title",
   "text": "the full generated text",
-  "dialogueLines": [],
-  "keyVocabulary": [
-    {"word":"...", "meaningEn":"...", "meaningFa":"...", "example":"...", "ipa":"...", "phoneticFa":"...", "cefr":"..."}
-  ]
+  "dialogueLines": []
+}`;
 }
-Use the given words themselves as the keyVocabulary entries, one per given word, in the same order.`;
-}
-document.getElementById('generateWordsBtn').addEventListener('click', async ()=>{
+document.getElementById('generateWordsBtn').addEventListener('click', ()=>{
   const s = readWordsSettings();
   if(!s.words.length){ toast('حداقل یک کلمه وارد کن'); return; }
   if(document.getElementById('saveTplWords').checked) saveTemplate(s);
-  const btn = document.getElementById('generateWordsBtn');
-  btn.disabled = true;
-  const row = document.getElementById('loadingRowWords');
-  row.style.display = 'flex'; row.querySelector('.ll').textContent = 'Generating your text…';
-  try{
-    const result = await callAI(buildWordsPrompt(s));
-    finalizeResult(result, result.text || '', '', s);
-  }catch(err){ toast(err.message); }
-  finally{ btn.disabled = false; row.style.display = 'none'; }
+  runFullGeneration(s, 'loadingRowWords', 'generateWordsBtn');
 });
 
 /* ================= MODE 3: auto form ================= */

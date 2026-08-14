@@ -36,7 +36,6 @@ function wrapWordsHtml(text, segIdx){
 }
 function renderOutput(r){
   const wrap = document.getElementById('outputWrap');
-  const kv = r.keyVocabulary || [];
   wrap.innerHTML = `
     <div class="card output-card">
       <div class="output-head">
@@ -55,7 +54,7 @@ function renderOutput(r){
       </div>
       <div class="result-tabs">
         <button class="result-tab active" data-rtab="text">Text</button>
-        <button class="result-tab" data-rtab="vocab">Vocabulary${kv.length ? ' ('+kv.length+')' : ''}</button>
+        <button class="result-tab" data-rtab="vocab">Vocabulary${r.keyVocabulary && r.keyVocabulary.length ? ' ('+r.keyVocabulary.length+')' : ''}</button>
         <button class="result-tab" data-rtab="exercises">Exercises</button>
       </div>
       <div class="result-tab-panel active" id="rtab-text">
@@ -68,10 +67,11 @@ function renderOutput(r){
           <button class="small-btn" id="copyBtn">Copy</button>
           <button class="small-btn" id="txtBtn">Download .txt</button>
           <button class="small-btn" id="pdfBtn">Print / PDF</button>
+          <button class="small-btn" id="regenBtn">↻ Generate Again</button>
         </div>
       </div>
       <div class="result-tab-panel" id="rtab-vocab">
-        ${kv.length ? renderKeyVocabList(kv) : `<div class="empty"><div class="big">No flagged words</div>This text didn't surface new vocabulary beyond what you've already saved.</div>`}
+        <div id="vocabTabArea"></div>
       </div>
       <div class="result-tab-panel" id="rtab-exercises">
         <div id="exercisesArea"></div>
@@ -84,6 +84,7 @@ function renderOutput(r){
       document.querySelectorAll('.result-tab-panel').forEach(p=>p.classList.remove('active'));
       document.getElementById('rtab-'+btn.dataset.rtab).classList.add('active');
       if(btn.dataset.rtab === 'exercises') loadExercises(r);
+      if(btn.dataset.rtab === 'vocab') loadKeyVocab(r);
     });
   });
 
@@ -99,6 +100,7 @@ function renderOutput(r){
   });
   document.getElementById('txtBtn').addEventListener('click', ()=>downloadBlob(`${r.title}\n\n${r.displayText}`, r.title+'.txt', 'text/plain'));
   document.getElementById('pdfBtn').addEventListener('click', ()=>printText(r));
+  document.getElementById('regenBtn').addEventListener('click', ()=>regenerateSameSettings(r));
   document.getElementById('translateToggleBtn').addEventListener('click', ()=>toggleTranslation(r));
   if(ttsSupported){
     document.getElementById('speakToggleBtn').addEventListener('click', ()=>{
@@ -109,14 +111,51 @@ function renderOutput(r){
     });
     wirePlayerControls(r);
   }
-  const vocabPanel = document.getElementById('rtab-vocab');
-  vocabPanel.querySelectorAll('[data-addkv]').forEach(btn=>{
+  wireWordTapPopup();
+}
+async function regenerateSameSettings(r){
+  const btn = document.getElementById('regenBtn');
+  const original = btn.textContent;
+  btn.disabled = true; btn.textContent = '…';
+  try{
+    const { result, finalText, verifiedCEFR, everMatched } = await generateFromSettings(r.settings);
+    finalizeResult(result, finalText, verifiedCEFR, r.settings, everMatched);
+  }catch(err){
+    toast(err.message);
+    btn.disabled = false; btn.textContent = original;
+  }
+}
+async function loadKeyVocab(r){
+  const area = document.getElementById('vocabTabArea');
+  if(r.keyVocabulary){ renderKeyVocabTab(r); return; }
+  area.innerHTML = `<div class="loading-row"><div class="spin"></div> Finding key vocabulary…</div>`;
+  try{
+    const explicitWords = r.settings.mode === 'words' ? r.settings.words : null;
+    const data = await callAI(buildKeyVocabPrompt(r.text, r.settings.grammarLevel, explicitWords));
+    let kv = data.keyVocabulary || [];
+    if(r.settings.mode !== 'words'){
+      const savedWords = new Set(LS.get('etg_vocab', []).map(v=>v.word.toLowerCase()));
+      kv = kv.filter(w => w.word && !savedWords.has(w.word.toLowerCase()));
+    }
+    r.keyVocabulary = kv;
+    saveResultUpdate(r);
+    const tabBtn = document.querySelector('.result-tab[data-rtab="vocab"]');
+    if(tabBtn) tabBtn.textContent = 'Vocabulary' + (kv.length ? ' ('+kv.length+')' : '');
+    renderKeyVocabTab(r);
+  }catch(e){
+    area.innerHTML = `<div class="hint" style="color:var(--danger)">Could not load vocabulary.</div>`;
+  }
+}
+function renderKeyVocabTab(r){
+  const area = document.getElementById('vocabTabArea');
+  const kv = r.keyVocabulary || [];
+  area.innerHTML = kv.length ? renderKeyVocabList(kv) : `<div class="empty"><div class="big">No flagged words</div>This text didn't surface new vocabulary beyond what you've already saved.</div>`;
+  area.querySelectorAll('[data-addkv]').forEach(btn=>{
     btn.addEventListener('click', ()=>{ addVocabWord(kv[Number(btn.dataset.addkv)], r.settings.topic || r.settings.mode); });
   });
-  vocabPanel.querySelectorAll('[data-speakkv]').forEach(btn=>{
+  area.querySelectorAll('[data-speakkv]').forEach(btn=>{
     btn.addEventListener('click', ()=>{ speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(btn.dataset.speakkv); u.lang='en-US'; speechSynthesis.speak(u); });
   });
-  wireWordTapPopup();
 }
 function printText(r){
   const w = window.open('', '_blank');
@@ -193,7 +232,7 @@ document.getElementById('wpAddBtn').addEventListener('click', ()=>{
 function saveResultUpdate(r){
   const history = LS.get('etg_history', []);
   const h = history.find(x=>x.id===r.id);
-  if(h){ h.translations = r.translations; h.exercises = r.exercises; }
+  if(h){ h.translations = r.translations; h.exercises = r.exercises; h.keyVocabulary = r.keyVocabulary; }
   LS.set('etg_history', history);
 }
 /* ---- comprehension exercises ---- */
