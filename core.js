@@ -435,7 +435,12 @@ async function callAI(prompt){
     raw = await callGeminiRaw(prompt, key, modelName);
   } else {
     if(typeof puter === 'undefined') throw new Error('The AI service failed to load. Check your internet connection and reload the page.');
-    const response = await puter.ai.chat(prompt, { model: localStorage.getItem('etg_puter_model') || 'openai/gpt-5.4-nano' });
+    let response;
+    try{
+      response = await puter.ai.chat(prompt, { model: localStorage.getItem('etg_puter_model') || 'openai/gpt-5.4-nano' });
+    }catch(sdkErr){
+      throw new Error('Puter had a problem answering (try again, or switch model/provider in Settings). Details: ' + (sdkErr?.message || sdkErr));
+    }
     raw = extractPuterText(response);
   }
   const cleaned = raw.replace(/```json|```/g,'').trim();
@@ -452,7 +457,12 @@ async function callAIText(prompt){
     raw = await callGeminiRaw(prompt, key, modelName);
   } else {
     if(typeof puter === 'undefined') throw new Error('The AI service failed to load. Check your internet connection and reload the page.');
-    const response = await puter.ai.chat(prompt, { model: localStorage.getItem('etg_puter_model') || 'openai/gpt-5.4-nano' });
+    let response;
+    try{
+      response = await puter.ai.chat(prompt, { model: localStorage.getItem('etg_puter_model') || 'openai/gpt-5.4-nano' });
+    }catch(sdkErr){
+      throw new Error('Puter had a problem answering (try again, or switch model/provider in Settings). Details: ' + (sdkErr?.message || sdkErr));
+    }
     raw = extractPuterText(response);
   }
   return raw.replace(/```markdown/g,'```').trim();
