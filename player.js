@@ -2,9 +2,12 @@
 function renderPlayerPanel(){
   return `<div class="player-panel" id="playerPanel">
     <div class="player-controls">
-      <button id="seekBackBtn">${icon('seekBack')}<span class="n">10</span></button>
+      <button id="prevSegBtn" title="Previous sentence">${icon('seekBack')}</button>
       <button class="play-btn" id="playPauseBtn">${icon('play')}</button>
-      <button id="seekFwdBtn">${icon('seekFwd')}<span class="n">10</span></button>
+      <button id="nextSegBtn" title="Next sentence">${icon('seekFwd')}</button>
+    </div>
+    <div class="player-controls-secondary">
+      <button id="repeatSegBtn" title="Repeat this sentence">${icon('repeat')}</button>
       <div class="speed-pill" id="speedPill">1x</div>
       <button class="player-close" id="playerCloseBtn">${icon('close')}</button>
     </div>
@@ -22,8 +25,15 @@ function formatTime(sec){
   return m + ':' + String(s).padStart(2,'0');
 }
 const TTSPlayer = {
-  segments: [], index: 0, rate: 1, playing: false, wordsBefore: 0, segStart: 0, timerId: null, totalWords: 0,
+  segments: [], index: 0, rate: 1, playing: false, wordsBefore: 0, segStart: 0, timerId: null, totalWords: 0, currentUtterance: null,
+  killCurrentUtterance(){
+    if(this.currentUtterance){ this.currentUtterance.onend = null; this.currentUtterance.onboundary = null; this.currentUtterance = null; }
+    speechSynthesis.cancel();
+  },
   build(r){
+    this.killCurrentUtterance();
+    this.playing = false;
+    this.stopTimer();
     this.segments = [];
     if(r.dialogueLines && r.dialogueLines.length){
       const maleV = pickVoiceByGender('male'), femaleV = pickVoiceByGender('female');
@@ -54,43 +64,38 @@ const TTSPlayer = {
   speakCurrent(){
     if(this.index >= this.segments.length){ this.stop(); return; }
     const seg = this.segments[this.index];
-    speechSynthesis.cancel();
+    this.killCurrentUtterance();
     this.recomputeWordsBefore();
     this.segStart = Date.now();
     const u = new SpeechSynthesisUtterance(seg.text);
     u.lang = 'en-US'; u.rate = this.rate;
     if(seg.voice) u.voice = seg.voice;
-    u.onend = ()=>{ if(this.playing){ this.index++; this.speakCurrent(); } };
+    u.onend = ()=>{ if(this.playing && this.currentUtterance === u){ this.index++; this.speakCurrent(); } };
     u.onboundary = (e)=> highlightWithinSegment(this.index, e.charIndex);
+    this.currentUtterance = u;
     highlightSegment(this.index);
     speechSynthesis.speak(u);
     updatePlayerUI();
   },
-  pause(){ this.playing=false; speechSynthesis.cancel(); this.stopTimer(); updatePlayerUI(); },
+  pause(){ this.playing=false; this.killCurrentUtterance(); this.stopTimer(); updatePlayerUI(); },
   stop(){
     this.playing=false; this.index=0; this.wordsBefore=0;
-    speechSynthesis.cancel(); this.stopTimer(); clearHighlight(); updatePlayerUI();
+    this.killCurrentUtterance(); this.stopTimer(); clearHighlight(); updatePlayerUI();
   },
-  seekSeconds(amount){
-    let remaining = amount, i = this.index;
-    const wps = this.wps();
-    if(amount > 0){
-      while(remaining > 0 && i < this.segments.length - 1){
-        const words = (this.segments[i].text.match(/\S+/g)||[]).length;
-        remaining -= words / wps;
-        i++;
-      }
-    } else {
-      while(remaining < 0 && i > 0){
-        i--;
-        const words = (this.segments[i].text.match(/\S+/g)||[]).length;
-        remaining += words / wps;
-      }
-    }
-    i = Math.min(Math.max(0,i), this.segments.length-1);
-    this.index = i;
-    speechSynthesis.cancel();
+  prevSegment(){
+    this.killCurrentUtterance();
+    this.index = Math.max(0, this.index - 1);
     if(this.playing) this.speakCurrent(); else { this.recomputeWordsBefore(); highlightSegment(this.index); updatePlayerUI(); }
+  },
+  nextSegment(){
+    this.killCurrentUtterance();
+    this.index = Math.min(this.segments.length - 1, this.index + 1);
+    if(this.playing) this.speakCurrent(); else { this.recomputeWordsBefore(); highlightSegment(this.index); updatePlayerUI(); }
+  },
+  repeatSegment(){
+    this.killCurrentUtterance();
+    if(!this.playing){ this.playing = true; this.startTimer(); }
+    this.speakCurrent();
   },
   setRate(r){ this.rate = r; if(this.playing) this.speakCurrent(); else updatePlayerUI(); },
   startTimer(){ this.stopTimer(); this.timerId = setInterval(updatePlayerUI, 250); },
@@ -133,8 +138,9 @@ function wirePlayerControls(r){
     if(TTSPlayer.playing){ TTSPlayer.pause(); }
     else{ if(TTSPlayer.segments.length===0) TTSPlayer.build(r); TTSPlayer.play(); }
   });
-  document.getElementById('seekBackBtn').addEventListener('click', ()=>{ if(TTSPlayer.segments.length===0) TTSPlayer.build(r); TTSPlayer.seekSeconds(-10); });
-  document.getElementById('seekFwdBtn').addEventListener('click', ()=>{ if(TTSPlayer.segments.length===0) TTSPlayer.build(r); TTSPlayer.seekSeconds(10); });
+  document.getElementById('prevSegBtn').addEventListener('click', ()=>{ if(TTSPlayer.segments.length===0) TTSPlayer.build(r); TTSPlayer.prevSegment(); });
+  document.getElementById('nextSegBtn').addEventListener('click', ()=>{ if(TTSPlayer.segments.length===0) TTSPlayer.build(r); TTSPlayer.nextSegment(); });
+  document.getElementById('repeatSegBtn').addEventListener('click', ()=>{ if(TTSPlayer.segments.length===0) TTSPlayer.build(r); TTSPlayer.repeatSegment(); });
   document.getElementById('speedPill').addEventListener('click', ()=>{
     const i = SPEED_STEPS.indexOf(TTSPlayer.rate);
     const next = SPEED_STEPS[(i+1) % SPEED_STEPS.length];

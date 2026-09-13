@@ -116,6 +116,7 @@ async function generateFromSettings(s, onProgress){
 }
 
 async function runFullGeneration(s, loadingId, btnId){
+  if(typeof TTSPlayer !== 'undefined') TTSPlayer.stop();
   const btn = document.getElementById(btnId);
   btn.disabled = true;
   const row = document.getElementById(loadingId);
